@@ -154,6 +154,10 @@ class CategoryDuplicate extends MooshCommand {
 
                 $clone = $this->clone_course_into_category($course, $category);
 
+                if (empty($clone)){
+                    continue;
+                }
+
                 if (!$this->duplicate_course_content($course, $clone, $category)){
                     echo " course content duplicate failed : from " . $course->id . " to " . $clone->id . PHP_EOL;
                 }
@@ -177,17 +181,23 @@ class CategoryDuplicate extends MooshCommand {
         $newcourse->shortname = $this->prefixed_shortname($course->shortname);
         $newcourse->format = $course->format;
 
-        $newcourse->idnumber = $course->idnumber;
+        $newcourse->idnumber = $this->prefixed_shortname($course->idnumber);
         $newcourse->visible = $course->visible;
         $newcourse->category = $category->id;
         $newcourse->summary = $course->summary;
         $newcourse->summaryformat = $course->summaryformat;
         $newcourse->startdate = time();
 
-        $created = create_course($newcourse);
+        try {
+            $created = create_course($newcourse);
+            $this->debug("   course created : " . $created->id);
+            return $created;
 
-        $this->debug("course created : " . $created->id);
-        return $created;
+        } catch (\Exception $e){
+            $this->debug("     error " . $e->getMessage());
+        }
+
+        return null;
     }
 
     /**
@@ -221,7 +231,8 @@ class CategoryDuplicate extends MooshCommand {
 
             $params = array( 'shortname' => $clone->shortname,
                              'fullname' => $clone->fullname,
-                             'visible' => $clone->visible);
+                             'visible' => $clone->visible,
+                             'startdate' => $clone->startdate);
 
 
             $admin = get_admin();
@@ -302,6 +313,7 @@ class CategoryDuplicate extends MooshCommand {
                 $course->fullname = $params['fullname'];
                 $course->shortname = $params['shortname'];
                 $course->visible = $params['visible'];
+                $course->startdate = $params['startdate'];
 
                 // Set shortname and fullname back.
                 $DB->update_record('course', $course);
